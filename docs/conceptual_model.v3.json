@@ -1,0 +1,2531 @@
+{
+  "version": "2.0.0",
+  "format": "skill-conceptual-model",
+  "timestamp": "2026-01-29T00:00:00.000000",
+  "project": {
+    "name": "쟈근친구들 V2 (Conture)",
+    "description": "작가가 스토리 초안(콘티)을 올리면, 팬들이 창작에 참여하고 기여를 크레딧으로 인정받는 참여형 플랫폼",
+    "version": "2.1.0",
+    "domain": "웹툰/스토리 플랫폼"
+  },
+  "entities": [
+    {
+      "name": "User",
+      "businessName": "사용자",
+      "description": "플랫폼을 사용하는 모든 사용자 (독자, 작가, 관리자)",
+      "category": "core",
+      "attributes": [
+        {
+          "name": "id",
+          "type": "UUID",
+          "required": true,
+          "description": "사용자 고유 식별자"
+        },
+        {
+          "name": "email",
+          "type": "String",
+          "required": true,
+          "description": "이메일 주소 (로그인 ID), unique constraint",
+          "constraints": {
+            "unique": true,
+            "format": "email"
+          }
+        },
+        {
+          "name": "password",
+          "type": "String",
+          "required": false,
+          "description": "암호화된 비밀번호 (소셜 로그인 시 null)",
+          "constraints": {
+            "minLength": 8,
+            "pattern": "영문 필수, 숫자 필수, 특수문자 선택"
+          }
+        },
+        {
+          "name": "nickname",
+          "type": "String",
+          "required": true,
+          "description": "닉네임 (크레딧 표기용, unique)",
+          "constraints": {
+            "unique": true,
+            "minLength": 2,
+            "maxLength": 12,
+            "pattern": "한글/영문/숫자/_/.만 허용"
+          }
+        },
+        {
+          "name": "profileImageUrl",
+          "type": "String",
+          "required": false,
+          "description": "프로필 이미지 URL (미설정 시 기본 아바타)",
+          "constraints": {
+            "format": "JPG/PNG/WEBP",
+            "maxSize": "3MB"
+          }
+        },
+        {
+          "name": "creatorBio",
+          "type": "String",
+          "required": false,
+          "description": "작가 소개글 (작가 전용, Plain Text)",
+          "constraints": {
+            "minLength": 500,
+            "maxLength": 1000,
+            "roleRequired": "CREATOR"
+          }
+        },
+        {
+          "name": "role",
+          "type": "Enum",
+          "required": true,
+          "description": "사용자 역할",
+          "enumValues": ["READER", "CREATOR", "ADMIN"],
+          "defaultValue": "READER"
+        },
+        {
+          "name": "authProvider",
+          "type": "Enum",
+          "required": true,
+          "description": "인증 방식",
+          "enumValues": ["EMAIL", "KAKAO", "GOOGLE"]
+        },
+        {
+          "name": "status",
+          "type": "Enum",
+          "required": true,
+          "description": "계정 상태",
+          "enumValues": ["ACTIVE", "SUSPENDED", "DELETED"],
+          "defaultValue": "ACTIVE"
+        },
+        {
+          "name": "isEmailVerified",
+          "type": "Boolean",
+          "required": true,
+          "description": "이메일 인증 완료 여부",
+          "defaultValue": false
+        },
+        {
+          "name": "phone",
+          "type": "String",
+          "required": false,
+          "description": "휴대폰 번호 (인증용)",
+          "constraints": {
+            "format": "한국 휴대폰 번호 형식"
+          }
+        },
+        {
+          "name": "isPhoneVerified",
+          "type": "Boolean",
+          "required": true,
+          "description": "휴대폰 인증 완료 여부",
+          "defaultValue": false
+        },
+        {
+          "name": "consents",
+          "type": "JSON",
+          "required": true,
+          "description": "약관 동의 상태",
+          "schema": {
+            "serviceTerms": "Boolean (필수)",
+            "privacyPolicy": "Boolean (필수)",
+            "communityRules": "Boolean (필수)",
+            "marketingConsent": "Boolean (선택)"
+          }
+        },
+        {
+          "name": "signupStep",
+          "type": "Enum",
+          "required": true,
+          "description": "회원가입 진행 단계",
+          "enumValues": ["EMAIL_VERIFICATION", "PASSWORD_SETUP", "PHONE_VERIFICATION", "TERMS_AGREEMENT", "COMPLETED"],
+          "defaultValue": "EMAIL_VERIFICATION"
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "required": true,
+          "description": "가입일시"
+        },
+        {
+          "name": "updatedAt",
+          "type": "DateTime",
+          "required": true,
+          "description": "정보 수정일시"
+        }
+      ],
+      "userStories": ["US-001", "US-002", "US-002-1", "US-002-2", "US-022", "US-023", "US-033", "US-034", "US-035"],
+      "relatedEntities": ["Wallet", "Story", "Proposal", "Backing", "WithdrawalRequest", "Report", "Sanction", "EmailVerification", "PhoneVerification", "Notification"]
+    },
+    {
+      "name": "EmailVerification",
+      "businessName": "이메일 인증",
+      "description": "이메일 인증 코드 및 상태 관리",
+      "category": "core",
+      "attributes": [
+        {
+          "name": "id",
+          "type": "UUID",
+          "required": true,
+          "description": "인증 요청 고유 식별자"
+        },
+        {
+          "name": "email",
+          "type": "String",
+          "required": true,
+          "description": "인증 대상 이메일"
+        },
+        {
+          "name": "userId",
+          "type": "UUID",
+          "required": false,
+          "description": "연결된 사용자 ID (가입 진행 중일 경우 null)",
+          "references": {
+            "entity": "User",
+            "attribute": "id",
+            "relationshipId": "rel-user-email-verification",
+            "onDelete": "CASCADE",
+            "onUpdate": "CASCADE"
+          }
+        },
+        {
+          "name": "code",
+          "type": "String",
+          "required": true,
+          "description": "인증 코드 (6자리 숫자)"
+        },
+        {
+          "name": "purpose",
+          "type": "Enum",
+          "required": true,
+          "description": "인증 목적",
+          "enumValues": ["SIGNUP", "PASSWORD_RESET", "EMAIL_CHANGE"]
+        },
+        {
+          "name": "status",
+          "type": "Enum",
+          "required": true,
+          "description": "인증 상태",
+          "enumValues": ["PENDING", "VERIFIED", "EXPIRED"],
+          "defaultValue": "PENDING"
+        },
+        {
+          "name": "expiresAt",
+          "type": "DateTime",
+          "required": true,
+          "description": "인증 코드 만료 시간"
+        },
+        {
+          "name": "verifiedAt",
+          "type": "DateTime",
+          "required": false,
+          "description": "인증 완료 시간"
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "required": true,
+          "description": "생성일시"
+        }
+      ],
+      "userStories": ["US-001"],
+      "relatedEntities": ["User"],
+      "domainRules": [
+        "인증 코드 유효 시간: 5분",
+        "재발송 간격: 최소 60초",
+        "최대 재발송 횟수: 5회/시간"
+      ]
+    },
+    {
+      "name": "PhoneVerification",
+      "businessName": "휴대폰 인증",
+      "description": "휴대폰 인증 코드 및 상태 관리",
+      "category": "core",
+      "attributes": [
+        {
+          "name": "id",
+          "type": "UUID",
+          "required": true,
+          "description": "인증 요청 고유 식별자"
+        },
+        {
+          "name": "phone",
+          "type": "String",
+          "required": true,
+          "description": "인증 대상 휴대폰 번호"
+        },
+        {
+          "name": "userId",
+          "type": "UUID",
+          "required": false,
+          "description": "연결된 사용자 ID",
+          "references": {
+            "entity": "User",
+            "attribute": "id",
+            "relationshipId": "rel-user-phone-verification",
+            "onDelete": "CASCADE",
+            "onUpdate": "CASCADE"
+          }
+        },
+        {
+          "name": "code",
+          "type": "String",
+          "required": true,
+          "description": "인증 코드 (6자리 숫자)"
+        },
+        {
+          "name": "purpose",
+          "type": "Enum",
+          "required": true,
+          "description": "인증 목적",
+          "enumValues": ["SIGNUP", "PASSWORD_RESET", "PHONE_CHANGE"]
+        },
+        {
+          "name": "status",
+          "type": "Enum",
+          "required": true,
+          "description": "인증 상태",
+          "enumValues": ["PENDING", "VERIFIED", "EXPIRED"],
+          "defaultValue": "PENDING"
+        },
+        {
+          "name": "expiresAt",
+          "type": "DateTime",
+          "required": true,
+          "description": "인증 코드 만료 시간 (5분)"
+        },
+        {
+          "name": "verifiedAt",
+          "type": "DateTime",
+          "required": false,
+          "description": "인증 완료 시간"
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "required": true,
+          "description": "생성일시"
+        }
+      ],
+      "userStories": ["US-001", "US-002-1"],
+      "relatedEntities": ["User"],
+      "domainRules": [
+        "인증 코드 유효 시간: 5분",
+        "재발송 간격: 최소 60초",
+        "최대 재발송 횟수: 5회/시간"
+      ]
+    },
+    {
+      "name": "Wallet",
+      "businessName": "지갑",
+      "description": "사용자의 Ink 재화를 관리하는 지갑",
+      "category": "financial",
+      "attributes": [
+        {
+          "name": "id",
+          "type": "UUID",
+          "required": true,
+          "description": "지갑 고유 식별자"
+        },
+        {
+          "name": "userId",
+          "type": "UUID",
+          "required": true,
+          "description": "소유자 사용자 ID",
+          "references": {
+            "entity": "User",
+            "attribute": "id",
+            "relationshipId": "rel-user-wallet",
+            "onDelete": "CASCADE",
+            "onUpdate": "CASCADE"
+          }
+        },
+        {
+          "name": "availableBalance",
+          "type": "Integer",
+          "required": true,
+          "description": "사용 가능한 Ink 잔액 (즉시 사용 가능)",
+          "constraints": {
+            "min": 0
+          },
+          "defaultValue": 0
+        },
+        {
+          "name": "pendingBalance",
+          "type": "Integer",
+          "required": true,
+          "description": "진행 중인 제안에 묶인 Ink (Proposal/Backing 에스크로)",
+          "constraints": {
+            "min": 0
+          },
+          "defaultValue": 0
+        },
+        {
+          "name": "totalBalance",
+          "type": "Integer",
+          "required": true,
+          "description": "총 보유 Ink (availableBalance + pendingBalance, 계산 필드)",
+          "computed": true
+        },
+        {
+          "name": "payableBalance",
+          "type": "Integer",
+          "required": true,
+          "description": "정산 예정금 (작가용), Deal 또는 직접 후원 시 누적",
+          "constraints": {
+            "min": 0
+          },
+          "defaultValue": 0
+        },
+        {
+          "name": "withdrawableBalance",
+          "type": "Integer",
+          "required": true,
+          "description": "출금 가능 금액 (작가용), 완성 원고 공개 후 수수료 차감된 금액",
+          "constraints": {
+            "min": 0
+          },
+          "defaultValue": 0
+        },
+        {
+          "name": "updatedAt",
+          "type": "DateTime",
+          "required": true,
+          "description": "잔액 갱신일시"
+        }
+      ],
+      "userStories": ["US-003", "US-003-1", "US-003-2", "US-004", "US-020"],
+      "relatedEntities": ["User", "Transaction"],
+      "domainRules": [
+        "totalBalance는 항상 availableBalance + pendingBalance와 동일해야 함",
+        "Proposal/Backing 생성 시 availableBalance 감소, pendingBalance 증가",
+        "Deal/Drop 정산 시 pendingBalance 감소",
+        "모든 잔액 필드는 음수가 될 수 없음"
+      ]
+    },
+    {
+      "name": "Transaction",
+      "businessName": "트랜잭션",
+      "description": "Ink 재화의 모든 흐름을 기록하는 불변 로그",
+      "category": "financial",
+      "attributes": [
+        {
+          "name": "id",
+          "type": "UUID",
+          "required": true,
+          "description": "트랜잭션 고유 식별자"
+        },
+        {
+          "name": "walletId",
+          "type": "UUID",
+          "required": true,
+          "description": "관련 지갑 ID",
+          "references": {
+            "entity": "Wallet",
+            "attribute": "id",
+            "relationshipId": "rel-wallet-transaction",
+            "onDelete": "RESTRICT",
+            "onUpdate": "CASCADE"
+          }
+        },
+        {
+          "name": "type",
+          "type": "Enum",
+          "required": true,
+          "description": "트랜잭션 유형",
+          "enumValues": ["CHARGE", "USE_PROPOSAL", "USE_BACKING", "USE_DIRECT", "REFUND", "SETTLEMENT", "WITHDRAWAL"]
+        },
+        {
+          "name": "amount",
+          "type": "Integer",
+          "required": true,
+          "description": "금액 (양수)",
+          "constraints": {
+            "min": 1
+          }
+        },
+        {
+          "name": "direction",
+          "type": "Enum",
+          "required": true,
+          "description": "입출금 방향",
+          "enumValues": ["IN", "OUT"]
+        },
+        {
+          "name": "referenceType",
+          "type": "Enum",
+          "required": false,
+          "description": "참조 엔티티 유형",
+          "enumValues": ["PAYMENT", "PROPOSAL", "BACKING", "EPISODE", "WITHDRAWAL_REQUEST"]
+        },
+        {
+          "name": "referenceId",
+          "type": "UUID",
+          "required": false,
+          "description": "참조 엔티티 ID"
+        },
+        {
+          "name": "description",
+          "type": "String",
+          "required": false,
+          "description": "트랜잭션 설명"
+        },
+        {
+          "name": "balanceAfter",
+          "type": "Integer",
+          "required": true,
+          "description": "트랜잭션 후 잔액"
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "required": true,
+          "description": "발생일시"
+        }
+      ],
+      "userStories": ["US-004"],
+      "relatedEntities": ["Wallet"],
+      "domainRules": [
+        "Transaction은 불변(immutable) - 생성 후 수정/삭제 불가",
+        "모든 Ink 이동은 반드시 Transaction으로 기록되어야 함",
+        "balanceAfter는 트랜잭션 적용 후의 정확한 잔액을 기록해야 함"
+      ]
+    },
+    {
+      "name": "Payment",
+      "businessName": "결제",
+      "description": "실제 화폐로 Ink를 구매한 결제 내역. 1 Ink = 100원 고정",
+      "category": "financial",
+      "attributes": [
+        {
+          "name": "id",
+          "type": "UUID",
+          "required": true,
+          "description": "결제 고유 식별자"
+        },
+        {
+          "name": "userId",
+          "type": "UUID",
+          "required": true,
+          "description": "결제자 ID",
+          "references": {
+            "entity": "User",
+            "attribute": "id",
+            "relationshipId": "rel-user-payment",
+            "onDelete": "RESTRICT",
+            "onUpdate": "CASCADE"
+          }
+        },
+        {
+          "name": "inkAmount",
+          "type": "Integer",
+          "required": true,
+          "description": "충전된 Ink 양",
+          "constraints": {
+            "allowedValues": [10, 20, 30, 100]
+          }
+        },
+        {
+          "name": "paymentAmount",
+          "type": "Integer",
+          "required": true,
+          "description": "결제 금액 (원), inkAmount × 100",
+          "computed": true
+        },
+        {
+          "name": "paymentMethod",
+          "type": "Enum",
+          "required": true,
+          "description": "결제 수단",
+          "enumValues": ["CARD", "BANK_TRANSFER", "VIRTUAL_ACCOUNT", "TOSS", "KAKAO_PAY", "PAYPLE"]
+        },
+        {
+          "name": "pgTransactionId",
+          "type": "String",
+          "required": true,
+          "description": "PG사 거래 ID"
+        },
+        {
+          "name": "status",
+          "type": "Enum",
+          "required": true,
+          "description": "결제 상태",
+          "enumValues": ["PENDING", "COMPLETED", "FAILED", "CANCELLED"],
+          "defaultValue": "PENDING"
+        },
+        {
+          "name": "failureReason",
+          "type": "String",
+          "required": false,
+          "description": "결제 실패 사유 (FAILED 상태일 때)"
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "required": true,
+          "description": "결제 요청일시"
+        },
+        {
+          "name": "completedAt",
+          "type": "DateTime",
+          "required": false,
+          "description": "결제 완료일시"
+        }
+      ],
+      "userStories": ["US-005", "US-027"],
+      "relatedEntities": ["User"],
+      "domainRules": [
+        "1 Ink = 100원 고정 환율",
+        "보너스/할인/추천/이벤트 전부 제거",
+        "구매 옵션: 10, 20, 30, 100 Ink만 제공",
+        "paymentAmount는 항상 inkAmount × 100과 동일해야 함"
+      ]
+    },
+    {
+      "name": "Story",
+      "businessName": "작품",
+      "description": "작가가 연재하는 작품 (웹툰/웹소설). Episode를 묶는 컨테이너 역할만 수행",
+      "category": "core",
+      "attributes": [
+        {
+          "name": "id",
+          "type": "UUID",
+          "required": true,
+          "description": "작품 고유 식별자"
+        },
+        {
+          "name": "creatorId",
+          "type": "UUID",
+          "required": true,
+          "description": "작가 ID",
+          "references": {
+            "entity": "User",
+            "attribute": "id",
+            "relationshipId": "rel-user-story",
+            "onDelete": "RESTRICT",
+            "onUpdate": "CASCADE"
+          }
+        },
+        {
+          "name": "title",
+          "type": "String",
+          "required": true,
+          "description": "작품 제목",
+          "constraints": {
+            "minLength": 1,
+            "maxLength": 100
+          }
+        },
+        {
+          "name": "description",
+          "type": "String",
+          "required": false,
+          "description": "작품 소개",
+          "constraints": {
+            "maxLength": 2000
+          }
+        },
+        {
+          "name": "thumbnailUrl",
+          "type": "String",
+          "required": false,
+          "description": "썸네일 이미지 URL"
+        },
+        {
+          "name": "totalBounty",
+          "type": "Integer",
+          "required": true,
+          "description": "전체 에피소드 총 모금액",
+          "defaultValue": 0
+        },
+        {
+          "name": "episodeCount",
+          "type": "Integer",
+          "required": true,
+          "description": "에피소드 개수",
+          "defaultValue": 0
+        },
+        {
+          "name": "isVisible",
+          "type": "Boolean",
+          "required": true,
+          "description": "노출 여부 (관리자 숨김 처리용)",
+          "defaultValue": true
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "required": true,
+          "description": "생성일시"
+        },
+        {
+          "name": "updatedAt",
+          "type": "DateTime",
+          "required": true,
+          "description": "수정일시"
+        }
+      ],
+      "userStories": ["US-006", "US-007", "US-024"],
+      "relatedEntities": ["User", "Episode", "Banner"],
+      "domainRules": [
+        "Story는 Episode를 묶는 컨테이너 역할만 수행",
+        "Story 자체에는 상태(status)가 없음 - 상태는 Episode 단위로만 관리",
+        "연재중/휴재/완결 개념 삭제됨"
+      ]
+    },
+    {
+      "name": "Episode",
+      "businessName": "에피소드",
+      "description": "작품의 개별 회차 (콘티 또는 완성본). 상태의 유일한 기준 단위",
+      "category": "core",
+      "attributes": [
+        {
+          "name": "id",
+          "type": "UUID",
+          "required": true,
+          "description": "에피소드 고유 식별자"
+        },
+        {
+          "name": "storyId",
+          "type": "UUID",
+          "required": true,
+          "description": "소속 작품 ID",
+          "references": {
+            "entity": "Story",
+            "attribute": "id",
+            "relationshipId": "rel-story-episode",
+            "onDelete": "CASCADE",
+            "onUpdate": "CASCADE"
+          }
+        },
+        {
+          "name": "episodeNumber",
+          "type": "Integer",
+          "required": true,
+          "description": "회차 번호",
+          "constraints": {
+            "min": 1
+          }
+        },
+        {
+          "name": "title",
+          "type": "String",
+          "required": true,
+          "description": "에피소드 제목",
+          "constraints": {
+            "minLength": 1,
+            "maxLength": 100
+          }
+        },
+        {
+          "name": "status",
+          "type": "Enum",
+          "required": true,
+          "description": "에피소드 상태",
+          "enumValues": ["OPEN", "PUBLISHED"],
+          "defaultValue": "OPEN"
+        },
+        {
+          "name": "totalBounty",
+          "type": "Integer",
+          "required": true,
+          "description": "해당 회차 총 모금액",
+          "defaultValue": 0
+        },
+        {
+          "name": "proposalCount",
+          "type": "Integer",
+          "required": true,
+          "description": "제안 개수",
+          "defaultValue": 0
+        },
+        {
+          "name": "backerCount",
+          "type": "Integer",
+          "required": true,
+          "description": "참여자 수 (Proposer + Backer + Sponsor)",
+          "defaultValue": 0
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "required": true,
+          "description": "생성일시"
+        },
+        {
+          "name": "publishedAt",
+          "type": "DateTime",
+          "required": false,
+          "description": "공개일시 (PUBLISHED 상태 전환 시)"
+        }
+      ],
+      "userStories": ["US-008", "US-012", "US-014", "US-015", "US-019"],
+      "relatedEntities": ["Story", "EpisodeContent", "Proposal", "Backing", "Credit"],
+      "domainRules": [
+        "OPEN 상태: 참여 가능 (제안/지지/후원 허용)",
+        "PUBLISHED 상태: 참여 종료, 결과 공개, Ink 정산 확정",
+        "DRAFT/HIDDEN/DELETED 상태 삭제됨",
+        "임시저장(Draft) 기능 삭제 - OPEN 상태에서 저장 시 즉시 독자 화면 반영",
+        "OPEN → PUBLISHED 전환은 최종 원고 업로드 시 자동 실행"
+      ]
+    },
+    {
+      "name": "EpisodeContent",
+      "businessName": "에피소드 콘텐츠",
+      "description": "에피소드를 구성하는 개별 콘텐츠 (이미지/텍스트)",
+      "category": "core",
+      "attributes": [
+        {
+          "name": "id",
+          "type": "UUID",
+          "required": true,
+          "description": "콘텐츠 고유 식별자"
+        },
+        {
+          "name": "episodeId",
+          "type": "UUID",
+          "required": true,
+          "description": "소속 에피소드 ID",
+          "references": {
+            "entity": "Episode",
+            "attribute": "id",
+            "relationshipId": "rel-episode-content",
+            "onDelete": "CASCADE",
+            "onUpdate": "CASCADE"
+          }
+        },
+        {
+          "name": "contentType",
+          "type": "Enum",
+          "required": true,
+          "description": "콘텐츠 유형",
+          "enumValues": ["IMAGE", "TEXT"]
+        },
+        {
+          "name": "contentUrl",
+          "type": "String",
+          "required": false,
+          "description": "이미지 URL (IMAGE 유형)"
+        },
+        {
+          "name": "textContent",
+          "type": "String",
+          "required": false,
+          "description": "텍스트 내용 (TEXT 유형)"
+        },
+        {
+          "name": "orderIndex",
+          "type": "Integer",
+          "required": true,
+          "description": "표시 순서",
+          "constraints": {
+            "min": 0
+          }
+        },
+        {
+          "name": "isFinal",
+          "type": "Boolean",
+          "required": true,
+          "description": "최종 원고 여부",
+          "defaultValue": false
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "required": true,
+          "description": "업로드일시"
+        }
+      ],
+      "userStories": ["US-008", "US-014", "US-019"],
+      "relatedEntities": ["Episode"],
+      "domainRules": [
+        "IMAGE 타입일 경우 contentUrl 필수, textContent null",
+        "TEXT 타입일 경우 textContent 필수, contentUrl null",
+        "orderIndex는 에피소드 내에서 unique해야 함"
+      ]
+    },
+    {
+      "name": "Proposal",
+      "businessName": "제안",
+      "description": "독자가 스토리 전개에 개입하기 위해 생성한 제안",
+      "category": "core",
+      "attributes": [
+        {
+          "name": "id",
+          "type": "UUID",
+          "required": true,
+          "description": "제안 고유 식별자"
+        },
+        {
+          "name": "episodeId",
+          "type": "UUID",
+          "required": true,
+          "description": "대상 에피소드 ID",
+          "references": {
+            "entity": "Episode",
+            "attribute": "id",
+            "relationshipId": "rel-episode-proposal",
+            "onDelete": "RESTRICT",
+            "onUpdate": "CASCADE"
+          }
+        },
+        {
+          "name": "proposerId",
+          "type": "UUID",
+          "required": true,
+          "description": "제안자 (독자) ID",
+          "references": {
+            "entity": "User",
+            "attribute": "id",
+            "relationshipId": "rel-user-proposal",
+            "onDelete": "RESTRICT",
+            "onUpdate": "CASCADE"
+          }
+        },
+        {
+          "name": "description",
+          "type": "String",
+          "required": true,
+          "description": "제안 내용",
+          "constraints": {
+            "minLength": 10,
+            "maxLength": 500
+          }
+        },
+        {
+          "name": "seedMoney",
+          "type": "Integer",
+          "required": true,
+          "description": "최초 베팅액",
+          "constraints": {
+            "min": 100
+          }
+        },
+        {
+          "name": "totalBounty",
+          "type": "Integer",
+          "required": true,
+          "description": "총 모금액 (seedMoney + 모든 Backing 합계)"
+        },
+        {
+          "name": "backerCount",
+          "type": "Integer",
+          "required": true,
+          "description": "지지자 수",
+          "defaultValue": 0
+        },
+        {
+          "name": "status",
+          "type": "Enum",
+          "required": true,
+          "description": "제안 상태",
+          "enumValues": ["PENDING", "DEAL", "DROP"],
+          "defaultValue": "PENDING"
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "required": true,
+          "description": "생성일시"
+        },
+        {
+          "name": "decidedAt",
+          "type": "DateTime",
+          "required": false,
+          "description": "Deal/Drop 결정일시"
+        }
+      ],
+      "userStories": ["US-009", "US-013", "US-016", "US-017", "US-018"],
+      "relatedEntities": ["Episode", "User", "Backing", "Escrow"],
+      "domainRules": [
+        "제안 생성 시 최소 100 Ink 이상 베팅 필수",
+        "OPEN 상태 Episode에서만 제안 생성 가능",
+        "제안자 본인은 자신의 제안에 추가 지지 불가",
+        "OPEN 상태에서 본인 제안 철회 가능"
+      ]
+    },
+    {
+      "name": "Backing",
+      "businessName": "지지/후원",
+      "description": "독자가 제안에 지지(Backer)하거나 직접 후원(Sponsor)한 기록. OPEN 상태에서 철회 가능",
+      "category": "core",
+      "attributes": [
+        {
+          "name": "id",
+          "type": "UUID",
+          "required": true,
+          "description": "지지/후원 고유 식별자"
+        },
+        {
+          "name": "backerId",
+          "type": "UUID",
+          "required": true,
+          "description": "지지자/후원자 (독자) ID",
+          "references": {
+            "entity": "User",
+            "attribute": "id",
+            "relationshipId": "rel-user-backing",
+            "onDelete": "RESTRICT",
+            "onUpdate": "CASCADE"
+          }
+        },
+        {
+          "name": "type",
+          "type": "Enum",
+          "required": true,
+          "description": "유형",
+          "enumValues": ["PROPOSAL_BACKING", "DIRECT_BACKING"]
+        },
+        {
+          "name": "proposalId",
+          "type": "UUID",
+          "required": false,
+          "description": "지지 대상 제안 ID (PROPOSAL_BACKING일 경우 필수)",
+          "references": {
+            "entity": "Proposal",
+            "attribute": "id",
+            "relationshipId": "rel-proposal-backing",
+            "onDelete": "RESTRICT",
+            "onUpdate": "CASCADE"
+          }
+        },
+        {
+          "name": "episodeId",
+          "type": "UUID",
+          "required": false,
+          "description": "직접 후원 대상 에피소드 ID (DIRECT_BACKING일 경우 필수)",
+          "references": {
+            "entity": "Episode",
+            "attribute": "id",
+            "relationshipId": "rel-episode-direct-backing",
+            "onDelete": "RESTRICT",
+            "onUpdate": "CASCADE"
+          }
+        },
+        {
+          "name": "amount",
+          "type": "Integer",
+          "required": true,
+          "description": "지지/후원 금액",
+          "constraints": {
+            "min": 1
+          }
+        },
+        {
+          "name": "status",
+          "type": "Enum",
+          "required": true,
+          "description": "상태",
+          "enumValues": ["ESCROWED", "SETTLED", "REFUNDED"],
+          "defaultValue": "ESCROWED"
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "required": true,
+          "description": "생성일시"
+        },
+        {
+          "name": "settledAt",
+          "type": "DateTime",
+          "required": false,
+          "description": "정산/환불 처리일시"
+        }
+      ],
+      "userStories": ["US-010", "US-011"],
+      "relatedEntities": ["User", "Proposal", "Episode"],
+      "domainRules": [
+        "PROPOSAL_BACKING: 제안에 대한 지지, 에스크로 보관",
+        "DIRECT_BACKING: 순수 후원, 에스크로 없이 즉시 작가 정산 예정금으로 이동",
+        "OPEN 상태에서 PROPOSAL_BACKING만 철회 가능",
+        "DIRECT_BACKING(Sponsor)은 철회 불가",
+        "type이 PROPOSAL_BACKING이면 proposalId 필수, episodeId null",
+        "type이 DIRECT_BACKING이면 episodeId 필수, proposalId null"
+      ]
+    },
+    {
+      "name": "Credit",
+      "businessName": "크레딧",
+      "description": "완성된 에피소드 하단에 표시되는 기여자 크레딧 데이터. Proposer+Backer+Sponsor 전원 노출",
+      "category": "core",
+      "attributes": [
+        {
+          "name": "id",
+          "type": "UUID",
+          "required": true,
+          "description": "크레딧 고유 식별자"
+        },
+        {
+          "name": "episodeId",
+          "type": "UUID",
+          "required": true,
+          "description": "소속 에피소드 ID",
+          "references": {
+            "entity": "Episode",
+            "attribute": "id",
+            "relationshipId": "rel-episode-credit",
+            "onDelete": "RESTRICT",
+            "onUpdate": "CASCADE"
+          }
+        },
+        {
+          "name": "contributors",
+          "type": "JSON",
+          "required": true,
+          "description": "기여자 리스트",
+          "schema": {
+            "type": "Array",
+            "items": {
+              "userId": "UUID",
+              "nickname": "String",
+              "amount": "Integer",
+              "type": "Enum (PROPOSER|BACKER|SPONSOR)",
+              "rank": "Integer"
+            }
+          }
+        },
+        {
+          "name": "mainProducers",
+          "type": "Array[UUID]",
+          "required": true,
+          "description": "상위 3인 Main Producer 사용자 ID (기여금액 기준)"
+        },
+        {
+          "name": "totalContributors",
+          "type": "Integer",
+          "required": true,
+          "description": "전체 기여자 수"
+        },
+        {
+          "name": "totalAmount",
+          "type": "Integer",
+          "required": true,
+          "description": "전체 기여 금액"
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "required": true,
+          "description": "생성일시 (영구 박제)"
+        }
+      ],
+      "userStories": ["US-012", "US-019"],
+      "relatedEntities": ["Episode"],
+      "domainRules": [
+        "에피소드가 PUBLISHED 상태로 전환될 때 자동 생성",
+        "생성 후 영구 박제 - 수정/삭제 불가",
+        "Proposer, Backer, Sponsor 전원 포함",
+        "기여금액 내림차순 정렬, 동일 금액 시 참여 시점 순",
+        "상위 3인은 mainProducers에 별도 저장"
+      ]
+    },
+    {
+      "name": "Escrow",
+      "businessName": "에스크로",
+      "description": "제안/지지 시 시스템이 보관하는 에스크로 계정",
+      "category": "financial",
+      "attributes": [
+        {
+          "name": "id",
+          "type": "UUID",
+          "required": true,
+          "description": "에스크로 고유 식별자"
+        },
+        {
+          "name": "proposalId",
+          "type": "UUID",
+          "required": true,
+          "description": "관련 제안 ID",
+          "references": {
+            "entity": "Proposal",
+            "attribute": "id",
+            "relationshipId": "rel-proposal-escrow",
+            "onDelete": "RESTRICT",
+            "onUpdate": "CASCADE"
+          }
+        },
+        {
+          "name": "totalAmount",
+          "type": "Integer",
+          "required": true,
+          "description": "보관 중인 총 금액"
+        },
+        {
+          "name": "status",
+          "type": "Enum",
+          "required": true,
+          "description": "에스크로 상태",
+          "enumValues": ["HOLDING", "RELEASED", "REFUNDED"],
+          "defaultValue": "HOLDING"
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "required": true,
+          "description": "생성일시"
+        },
+        {
+          "name": "resolvedAt",
+          "type": "DateTime",
+          "required": false,
+          "description": "해제/환불 처리일시"
+        }
+      ],
+      "userStories": ["US-009", "US-010", "US-017", "US-018"],
+      "relatedEntities": ["Proposal"],
+      "domainRules": [
+        "Proposal 생성 시 자동 생성, 초기 상태 HOLDING",
+        "Deal 시 RELEASED 상태로 전환, 금액은 작가 payableBalance로 이동",
+        "Drop 시 REFUNDED 상태로 전환, 금액은 모든 참여자에게 100% 환불",
+        "철회 시 해당 Backing 금액만큼 totalAmount 감소"
+      ]
+    },
+    {
+      "name": "WithdrawalRequest",
+      "businessName": "출금 요청",
+      "description": "작가가 출금 가능 금액을 실제 계좌로 출금 요청한 내역",
+      "category": "financial",
+      "attributes": [
+        {
+          "name": "id",
+          "type": "UUID",
+          "required": true,
+          "description": "출금 요청 고유 식별자"
+        },
+        {
+          "name": "creatorId",
+          "type": "UUID",
+          "required": true,
+          "description": "요청자 (작가) ID",
+          "references": {
+            "entity": "User",
+            "attribute": "id",
+            "relationshipId": "rel-user-withdrawal",
+            "onDelete": "RESTRICT",
+            "onUpdate": "CASCADE"
+          }
+        },
+        {
+          "name": "amount",
+          "type": "Integer",
+          "required": true,
+          "description": "출금 요청 금액",
+          "constraints": {
+            "min": 1000
+          }
+        },
+        {
+          "name": "bankName",
+          "type": "String",
+          "required": true,
+          "description": "은행명"
+        },
+        {
+          "name": "accountNumber",
+          "type": "String",
+          "required": true,
+          "description": "계좌번호"
+        },
+        {
+          "name": "accountHolder",
+          "type": "String",
+          "required": true,
+          "description": "예금주명"
+        },
+        {
+          "name": "status",
+          "type": "Enum",
+          "required": true,
+          "description": "요청 상태",
+          "enumValues": ["PENDING", "APPROVED", "REJECTED", "COMPLETED"],
+          "defaultValue": "PENDING"
+        },
+        {
+          "name": "adminNote",
+          "type": "String",
+          "required": false,
+          "description": "관리자 메모"
+        },
+        {
+          "name": "rejectionReason",
+          "type": "String",
+          "required": false,
+          "description": "거절 사유 (REJECTED 상태일 때)"
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "required": true,
+          "description": "요청일시"
+        },
+        {
+          "name": "processedAt",
+          "type": "DateTime",
+          "required": false,
+          "description": "처리 완료일시"
+        }
+      ],
+      "userStories": ["US-021", "US-025", "US-026"],
+      "relatedEntities": ["User"],
+      "domainRules": [
+        "출금 요청 금액은 withdrawableBalance를 초과할 수 없음",
+        "APPROVED 상태로 전환 시 실제 이체 프로세스 시작",
+        "COMPLETED 상태로 전환 시 withdrawableBalance 감소 및 Transaction 생성",
+        "최소 출금 금액: 1,000원"
+      ]
+    },
+    {
+      "name": "Sanction",
+      "businessName": "제재",
+      "description": "관리자가 악성 유저에게 부과한 제재 기록",
+      "category": "settings",
+      "attributes": [
+        {
+          "name": "id",
+          "type": "UUID",
+          "required": true,
+          "description": "제재 고유 식별자"
+        },
+        {
+          "name": "userId",
+          "type": "UUID",
+          "required": true,
+          "description": "제재 대상 사용자 ID",
+          "references": {
+            "entity": "User",
+            "attribute": "id",
+            "relationshipId": "rel-user-sanction",
+            "onDelete": "RESTRICT",
+            "onUpdate": "CASCADE"
+          }
+        },
+        {
+          "name": "adminId",
+          "type": "UUID",
+          "required": true,
+          "description": "제재 처리 관리자 ID",
+          "references": {
+            "entity": "User",
+            "attribute": "id",
+            "relationshipId": "rel-admin-sanction",
+            "onDelete": "RESTRICT",
+            "onUpdate": "CASCADE"
+          }
+        },
+        {
+          "name": "reportId",
+          "type": "UUID",
+          "required": false,
+          "description": "연동된 신고 ID (신고 기반 제재 시)",
+          "references": {
+            "entity": "Report",
+            "attribute": "id",
+            "relationshipId": "rel-report-sanction",
+            "onDelete": "SET NULL",
+            "onUpdate": "CASCADE"
+          }
+        },
+        {
+          "name": "reason",
+          "type": "String",
+          "required": true,
+          "description": "제재 사유",
+          "constraints": {
+            "minLength": 10
+          }
+        },
+        {
+          "name": "type",
+          "type": "Enum",
+          "required": true,
+          "description": "제재 유형",
+          "enumValues": ["WARNING", "SUSPENSION", "PERMANENT_BAN"]
+        },
+        {
+          "name": "durationDays",
+          "type": "Integer",
+          "required": false,
+          "description": "정지 기간 (일수, SUSPENSION일 경우 필수)"
+        },
+        {
+          "name": "startAt",
+          "type": "DateTime",
+          "required": true,
+          "description": "제재 시작일시"
+        },
+        {
+          "name": "endAt",
+          "type": "DateTime",
+          "required": false,
+          "description": "제재 종료일시 (PERMANENT_BAN일 경우 null)"
+        },
+        {
+          "name": "isActive",
+          "type": "Boolean",
+          "required": true,
+          "description": "현재 활성화 상태 여부",
+          "defaultValue": true
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "required": true,
+          "description": "생성일시"
+        }
+      ],
+      "userStories": ["US-023", "US-032"],
+      "relatedEntities": ["User", "Report"],
+      "domainRules": [
+        "SUSPENSION 또는 PERMANENT_BAN 적용 시 해당 사용자 로그인 차단",
+        "SUSPENSION은 endAt 필수, PERMANENT_BAN은 endAt null",
+        "제재 이력은 사용자 상세 화면에서 조회 가능",
+        "경과된 SUSPENSION은 isActive=false로 자동 전환"
+      ]
+    },
+    {
+      "name": "Report",
+      "businessName": "신고",
+      "description": "사용자가 다른 사용자 또는 콘텐츠를 신고한 기록",
+      "category": "settings",
+      "attributes": [
+        {
+          "name": "id",
+          "type": "UUID",
+          "required": true,
+          "description": "신고 고유 식별자"
+        },
+        {
+          "name": "reporterId",
+          "type": "UUID",
+          "required": true,
+          "description": "신고자 사용자 ID",
+          "references": {
+            "entity": "User",
+            "attribute": "id",
+            "relationshipId": "rel-reporter-report",
+            "onDelete": "RESTRICT",
+            "onUpdate": "CASCADE"
+          }
+        },
+        {
+          "name": "reportedUserId",
+          "type": "UUID",
+          "required": true,
+          "description": "피신고자 사용자 ID",
+          "references": {
+            "entity": "User",
+            "attribute": "id",
+            "relationshipId": "rel-reported-report",
+            "onDelete": "RESTRICT",
+            "onUpdate": "CASCADE"
+          }
+        },
+        {
+          "name": "type",
+          "type": "Enum",
+          "required": true,
+          "description": "신고 유형 (6가지)",
+          "enumValues": ["SPAM", "ABUSE", "INAPPROPRIATE_CONTENT", "COPYRIGHT", "MISINFORMATION", "OTHER"]
+        },
+        {
+          "name": "reason",
+          "type": "String",
+          "required": true,
+          "description": "신고 사유 상세",
+          "constraints": {
+            "minLength": 10
+          }
+        },
+        {
+          "name": "referenceType",
+          "type": "Enum",
+          "required": false,
+          "description": "신고 맥락 참조 유형",
+          "enumValues": ["STORY", "PROPOSAL", "BACKING", "COMMENT", "PROFILE"]
+        },
+        {
+          "name": "referenceId",
+          "type": "UUID",
+          "required": false,
+          "description": "신고 맥락 참조 ID"
+        },
+        {
+          "name": "status",
+          "type": "Enum",
+          "required": true,
+          "description": "처리 상태",
+          "enumValues": ["PENDING", "REVIEWING", "RESOLVED", "DISMISSED"],
+          "defaultValue": "PENDING"
+        },
+        {
+          "name": "adminId",
+          "type": "UUID",
+          "required": false,
+          "description": "처리 담당 관리자 ID",
+          "references": {
+            "entity": "User",
+            "attribute": "id",
+            "relationshipId": "rel-admin-report",
+            "onDelete": "SET NULL",
+            "onUpdate": "CASCADE"
+          }
+        },
+        {
+          "name": "adminFeedback",
+          "type": "String",
+          "required": false,
+          "description": "신고자에게 공개되는 처리 결과 피드백"
+        },
+        {
+          "name": "adminNote",
+          "type": "String",
+          "required": false,
+          "description": "내부 관리자 메모 (비공개)"
+        },
+        {
+          "name": "sanctionId",
+          "type": "UUID",
+          "required": false,
+          "description": "연동된 제재 ID (제재 조치 시)",
+          "references": {
+            "entity": "Sanction",
+            "attribute": "id",
+            "relationshipId": "rel-sanction-report",
+            "onDelete": "SET NULL",
+            "onUpdate": "CASCADE"
+          }
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "required": true,
+          "description": "신고 접수일시"
+        },
+        {
+          "name": "processedAt",
+          "type": "DateTime",
+          "required": false,
+          "description": "처리 완료일시"
+        }
+      ],
+      "userStories": ["US-029", "US-030", "US-031", "US-032"],
+      "relatedEntities": ["User", "Sanction"],
+      "domainRules": [
+        "동일 신고자가 동일 피신고자를 중복 신고 불가 (PENDING/REVIEWING 상태일 때)",
+        "신고 사유는 최소 10자 이상 입력 필수",
+        "신고 유형 6가지: SPAM, ABUSE, INAPPROPRIATE_CONTENT, COPYRIGHT, MISINFORMATION, OTHER",
+        "작가는 본인 스토리에 달린 Proposal 작성자만 신고 가능",
+        "처리 완료 시 신고자에게 결과 알림 발송 가능"
+      ]
+    },
+    {
+      "name": "Banner",
+      "businessName": "배너",
+      "description": "홈 화면에 표시되는 배너 정보",
+      "category": "settings",
+      "attributes": [
+        {
+          "name": "id",
+          "type": "UUID",
+          "required": true,
+          "description": "배너 고유 식별자"
+        },
+        {
+          "name": "title",
+          "type": "String",
+          "required": true,
+          "description": "배너 제목",
+          "constraints": {
+            "maxLength": 100
+          }
+        },
+        {
+          "name": "subtitle",
+          "type": "String",
+          "required": false,
+          "description": "배너 부제목"
+        },
+        {
+          "name": "imageUrl",
+          "type": "String",
+          "required": false,
+          "description": "배너 배경 이미지 URL",
+          "constraints": {
+            "format": "JPG/PNG/WEBP",
+            "recommendedRatio": "16:9 또는 3:1"
+          }
+        },
+        {
+          "name": "linkUrl",
+          "type": "String",
+          "required": false,
+          "description": "클릭 시 이동할 URL"
+        },
+        {
+          "name": "linkType",
+          "type": "Enum",
+          "required": true,
+          "description": "링크 유형",
+          "enumValues": ["INTERNAL", "EXTERNAL", "NONE"],
+          "defaultValue": "NONE"
+        },
+        {
+          "name": "targetStoryId",
+          "type": "UUID",
+          "required": false,
+          "description": "연결된 작품 ID (INTERNAL 링크 시)",
+          "references": {
+            "entity": "Story",
+            "attribute": "id",
+            "relationshipId": "rel-story-banner",
+            "onDelete": "SET NULL",
+            "onUpdate": "CASCADE"
+          }
+        },
+        {
+          "name": "displayOrder",
+          "type": "Integer",
+          "required": true,
+          "description": "표시 순서",
+          "defaultValue": 0
+        },
+        {
+          "name": "isActive",
+          "type": "Boolean",
+          "required": true,
+          "description": "활성화 여부",
+          "defaultValue": true
+        },
+        {
+          "name": "startAt",
+          "type": "DateTime",
+          "required": false,
+          "description": "노출 시작 시간"
+        },
+        {
+          "name": "endAt",
+          "type": "DateTime",
+          "required": false,
+          "description": "노출 종료 시간"
+        },
+        {
+          "name": "createdBy",
+          "type": "UUID",
+          "required": true,
+          "description": "생성 관리자 ID",
+          "references": {
+            "entity": "User",
+            "attribute": "id",
+            "relationshipId": "rel-admin-banner",
+            "onDelete": "RESTRICT",
+            "onUpdate": "CASCADE"
+          }
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "required": true,
+          "description": "생성일시"
+        },
+        {
+          "name": "updatedAt",
+          "type": "DateTime",
+          "required": true,
+          "description": "수정일시"
+        }
+      ],
+      "userStories": ["US-006"],
+      "relatedEntities": ["User", "Story"],
+      "domainRules": [
+        "이미지 권장 비율: 16:9 또는 3:1",
+        "이미지 미업로드 시 기본 배경색 표시",
+        "startAt/endAt으로 자동 노출 스케줄링 가능",
+        "displayOrder로 캐러셀 순서 결정"
+      ]
+    },
+    {
+      "name": "Notification",
+      "businessName": "알림",
+      "description": "사용자에게 발송되는 알림 정보",
+      "category": "settings",
+      "attributes": [
+        {
+          "name": "id",
+          "type": "UUID",
+          "required": true,
+          "description": "알림 고유 식별자"
+        },
+        {
+          "name": "userId",
+          "type": "UUID",
+          "required": true,
+          "description": "수신자 ID",
+          "references": {
+            "entity": "User",
+            "attribute": "id",
+            "relationshipId": "rel-user-notification",
+            "onDelete": "CASCADE",
+            "onUpdate": "CASCADE"
+          }
+        },
+        {
+          "name": "type",
+          "type": "Enum",
+          "required": true,
+          "description": "알림 유형",
+          "enumValues": [
+            "PROPOSAL_ACCEPTED",
+            "PROPOSAL_REJECTED",
+            "REFUND_COMPLETED",
+            "REPORT_RESOLVED",
+            "EPISODE_PUBLISHED",
+            "NEW_PROPOSAL",
+            "NEW_BACKING",
+            "NEW_SPONSOR",
+            "SETTLEMENT_COMPLETED",
+            "SETTLEMENT_REJECTED",
+            "NEW_REPORT",
+            "WITHDRAWAL_REQUEST",
+            "NEW_USER_SIGNUP"
+          ]
+        },
+        {
+          "name": "channel",
+          "type": "Enum",
+          "required": true,
+          "description": "발송 채널",
+          "enumValues": ["EMAIL", "SMS", "PUSH", "IN_APP"],
+          "defaultValue": "EMAIL"
+        },
+        {
+          "name": "title",
+          "type": "String",
+          "required": true,
+          "description": "알림 제목"
+        },
+        {
+          "name": "content",
+          "type": "String",
+          "required": true,
+          "description": "알림 내용"
+        },
+        {
+          "name": "referenceType",
+          "type": "Enum",
+          "required": false,
+          "description": "참조 엔티티 유형",
+          "enumValues": ["PROPOSAL", "EPISODE", "REPORT", "WITHDRAWAL_REQUEST", "USER"]
+        },
+        {
+          "name": "referenceId",
+          "type": "UUID",
+          "required": false,
+          "description": "참조 엔티티 ID"
+        },
+        {
+          "name": "status",
+          "type": "Enum",
+          "required": true,
+          "description": "발송 상태",
+          "enumValues": ["PENDING", "SENT", "FAILED", "READ"],
+          "defaultValue": "PENDING"
+        },
+        {
+          "name": "isRead",
+          "type": "Boolean",
+          "required": true,
+          "description": "읽음 여부",
+          "defaultValue": false
+        },
+        {
+          "name": "sentAt",
+          "type": "DateTime",
+          "required": false,
+          "description": "발송 시간"
+        },
+        {
+          "name": "readAt",
+          "type": "DateTime",
+          "required": false,
+          "description": "읽은 시간"
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "required": true,
+          "description": "생성일시"
+        }
+      ],
+      "userStories": [],
+      "relatedEntities": ["User"],
+      "domainRules": [
+        "독자 알림: 제안 채택/거절, 환불 완료, 신고 처리 완료, 참여 작품 완성",
+        "작가 알림: 새 제안, 새 지지, 새 후원, 정산 완료/거절",
+        "관리자 알림: 새 신고, 출금 요청, 신규 가입"
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "relationshipId": "rel-user-wallet",
+      "from": "User",
+      "to": "Wallet",
+      "cardinality": "1:1",
+      "type": "identifying",
+      "optional": { "from": false, "to": false },
+      "description": "사용자는 하나의 지갑을 보유",
+      "businessRule": "회원가입 시 자동 생성"
+    },
+    {
+      "relationshipId": "rel-user-story",
+      "from": "User",
+      "to": "Story",
+      "cardinality": "1:N",
+      "type": "non-identifying",
+      "optional": { "from": true, "to": false },
+      "description": "작가는 여러 작품을 소유",
+      "businessRule": "CREATOR 역할만 작품 생성 가능"
+    },
+    {
+      "relationshipId": "rel-user-proposal",
+      "from": "User",
+      "to": "Proposal",
+      "cardinality": "1:N",
+      "type": "non-identifying",
+      "optional": { "from": true, "to": false },
+      "description": "독자는 여러 제안을 생성"
+    },
+    {
+      "relationshipId": "rel-user-backing",
+      "from": "User",
+      "to": "Backing",
+      "cardinality": "1:N",
+      "type": "non-identifying",
+      "optional": { "from": true, "to": false },
+      "description": "독자는 여러 지지/후원을 수행"
+    },
+    {
+      "relationshipId": "rel-user-withdrawal",
+      "from": "User",
+      "to": "WithdrawalRequest",
+      "cardinality": "1:N",
+      "type": "non-identifying",
+      "optional": { "from": true, "to": false },
+      "description": "작가는 여러 출금 요청을 생성"
+    },
+    {
+      "relationshipId": "rel-reporter-report",
+      "from": "User",
+      "to": "Report",
+      "cardinality": "1:N",
+      "type": "non-identifying",
+      "optional": { "from": true, "to": false },
+      "description": "사용자는 여러 신고를 할 수 있음"
+    },
+    {
+      "relationshipId": "rel-reported-report",
+      "from": "User",
+      "to": "Report",
+      "cardinality": "1:N",
+      "type": "non-identifying",
+      "optional": { "from": true, "to": false },
+      "description": "사용자는 여러 번 신고당할 수 있음"
+    },
+    {
+      "relationshipId": "rel-user-sanction",
+      "from": "User",
+      "to": "Sanction",
+      "cardinality": "1:N",
+      "type": "non-identifying",
+      "optional": { "from": true, "to": false },
+      "description": "사용자는 여러 제재를 받을 수 있음"
+    },
+    {
+      "relationshipId": "rel-user-email-verification",
+      "from": "User",
+      "to": "EmailVerification",
+      "cardinality": "1:N",
+      "type": "non-identifying",
+      "optional": { "from": true, "to": true },
+      "description": "사용자는 여러 이메일 인증 요청을 가질 수 있음"
+    },
+    {
+      "relationshipId": "rel-user-phone-verification",
+      "from": "User",
+      "to": "PhoneVerification",
+      "cardinality": "1:N",
+      "type": "non-identifying",
+      "optional": { "from": true, "to": true },
+      "description": "사용자는 여러 휴대폰 인증 요청을 가질 수 있음"
+    },
+    {
+      "relationshipId": "rel-user-notification",
+      "from": "User",
+      "to": "Notification",
+      "cardinality": "1:N",
+      "type": "non-identifying",
+      "optional": { "from": true, "to": false },
+      "description": "사용자는 여러 알림을 받을 수 있음"
+    },
+    {
+      "relationshipId": "rel-user-payment",
+      "from": "User",
+      "to": "Payment",
+      "cardinality": "1:N",
+      "type": "non-identifying",
+      "optional": { "from": true, "to": false },
+      "description": "사용자는 여러 결제를 할 수 있음"
+    },
+    {
+      "relationshipId": "rel-wallet-transaction",
+      "from": "Wallet",
+      "to": "Transaction",
+      "cardinality": "1:N",
+      "type": "identifying",
+      "optional": { "from": true, "to": false },
+      "description": "지갑은 여러 트랜잭션 내역을 보유"
+    },
+    {
+      "relationshipId": "rel-story-episode",
+      "from": "Story",
+      "to": "Episode",
+      "cardinality": "1:N",
+      "type": "identifying",
+      "optional": { "from": true, "to": false },
+      "description": "작품은 여러 에피소드를 포함"
+    },
+    {
+      "relationshipId": "rel-episode-content",
+      "from": "Episode",
+      "to": "EpisodeContent",
+      "cardinality": "1:N",
+      "type": "identifying",
+      "optional": { "from": true, "to": false },
+      "description": "에피소드는 여러 콘텐츠를 포함"
+    },
+    {
+      "relationshipId": "rel-episode-proposal",
+      "from": "Episode",
+      "to": "Proposal",
+      "cardinality": "1:N",
+      "type": "non-identifying",
+      "optional": { "from": true, "to": false },
+      "description": "에피소드는 여러 제안을 받을 수 있음"
+    },
+    {
+      "relationshipId": "rel-episode-direct-backing",
+      "from": "Episode",
+      "to": "Backing",
+      "cardinality": "1:N",
+      "type": "non-identifying",
+      "optional": { "from": true, "to": true },
+      "description": "에피소드는 여러 직접 후원을 받을 수 있음"
+    },
+    {
+      "relationshipId": "rel-episode-credit",
+      "from": "Episode",
+      "to": "Credit",
+      "cardinality": "1:1",
+      "type": "identifying",
+      "optional": { "from": true, "to": false },
+      "description": "에피소드는 하나의 크레딧을 가짐 (PUBLISHED 상태)"
+    },
+    {
+      "relationshipId": "rel-proposal-backing",
+      "from": "Proposal",
+      "to": "Backing",
+      "cardinality": "1:N",
+      "type": "non-identifying",
+      "optional": { "from": true, "to": true },
+      "description": "제안은 여러 지지를 받을 수 있음"
+    },
+    {
+      "relationshipId": "rel-proposal-escrow",
+      "from": "Proposal",
+      "to": "Escrow",
+      "cardinality": "1:1",
+      "type": "identifying",
+      "optional": { "from": false, "to": false },
+      "description": "제안은 하나의 에스크로 계정을 가짐"
+    },
+    {
+      "relationshipId": "rel-story-banner",
+      "from": "Story",
+      "to": "Banner",
+      "cardinality": "1:N",
+      "type": "non-identifying",
+      "optional": { "from": true, "to": true },
+      "description": "배너는 특정 작품과 연결될 수 있음"
+    },
+    {
+      "relationshipId": "rel-admin-banner",
+      "from": "User",
+      "to": "Banner",
+      "cardinality": "1:N",
+      "type": "non-identifying",
+      "optional": { "from": true, "to": false },
+      "description": "배너는 관리자에 의해 생성됨"
+    },
+    {
+      "relationshipId": "rel-admin-sanction",
+      "from": "User",
+      "to": "Sanction",
+      "cardinality": "1:N",
+      "type": "non-identifying",
+      "optional": { "from": true, "to": false },
+      "description": "제재는 하나의 관리자에 의해 생성됨"
+    },
+    {
+      "relationshipId": "rel-report-sanction",
+      "from": "Report",
+      "to": "Sanction",
+      "cardinality": "1:1",
+      "type": "non-identifying",
+      "optional": { "from": true, "to": true },
+      "description": "신고는 제재와 연동될 수 있음"
+    },
+    {
+      "relationshipId": "rel-admin-report",
+      "from": "User",
+      "to": "Report",
+      "cardinality": "1:N",
+      "type": "non-identifying",
+      "optional": { "from": true, "to": true },
+      "description": "신고는 하나의 관리자에 의해 처리됨"
+    },
+    {
+      "relationshipId": "rel-sanction-report",
+      "from": "Sanction",
+      "to": "Report",
+      "cardinality": "1:1",
+      "type": "non-identifying",
+      "optional": { "from": true, "to": true },
+      "description": "제재는 신고와 연동될 수 있음"
+    }
+  ],
+  "domainRules": [
+    {
+      "id": "DR-001",
+      "name": "닉네임 고유성",
+      "description": "닉네임은 플랫폼 전체에서 중복될 수 없음 (크레딧 표기용)",
+      "entities": ["User"],
+      "userStories": ["US-001"]
+    },
+    {
+      "id": "DR-002",
+      "name": "최소 제안 금액",
+      "description": "제안 생성 시 최소 100 Ink 이상 베팅해야 함",
+      "entities": ["Proposal"],
+      "userStories": ["US-009"]
+    },
+    {
+      "id": "DR-003",
+      "name": "잔액 초과 사용 불가",
+      "description": "제안/지지/후원 시 보유 Ink보다 많은 금액 사용 불가",
+      "entities": ["Wallet", "Proposal", "Backing"],
+      "userStories": ["US-009", "US-010", "US-011"]
+    },
+    {
+      "id": "DR-004",
+      "name": "에스크로 보관",
+      "description": "제안/지지 시 Ink는 시스템 에스크로에 보관되며, Deal 또는 Drop 시까지 유지",
+      "entities": ["Escrow", "Proposal", "Backing"],
+      "userStories": ["US-009", "US-010"]
+    },
+    {
+      "id": "DR-005",
+      "name": "Drop 시 전액 환불",
+      "description": "제안이 Drop되면 해당 제안의 모든 Backer에게 100% 환불",
+      "entities": ["Proposal", "Backing", "Escrow", "Wallet"],
+      "userStories": ["US-018"]
+    },
+    {
+      "id": "DR-006",
+      "name": "Deal 시 정산 이관",
+      "description": "제안이 Deal되면 에스크로 금액이 작가의 payableBalance로 이동",
+      "entities": ["Proposal", "Escrow", "Wallet"],
+      "userStories": ["US-017"]
+    },
+    {
+      "id": "DR-007",
+      "name": "직접 후원 즉시 정산",
+      "description": "직접 후원은 에스크로 없이 즉시 작가의 정산 예정금으로 이동",
+      "entities": ["Backing", "Wallet"],
+      "userStories": ["US-011"]
+    },
+    {
+      "id": "DR-008",
+      "name": "최종 원고 업로드 시 정산 전환",
+      "description": "완성 원고 업로드 시 payable_balance가 withdrawable_balance로 전환 (수수료 차감)",
+      "entities": ["Episode", "Wallet"],
+      "userStories": ["US-019"]
+    },
+    {
+      "id": "DR-009",
+      "name": "크레딧 영구 박제",
+      "description": "에피소드 공개 시 생성된 크레딧 데이터는 이후 변경 불가",
+      "entities": ["Credit"],
+      "userStories": ["US-012", "US-019"]
+    },
+    {
+      "id": "DR-010",
+      "name": "크레딧 정렬 규칙",
+      "description": "기여 금액 내림차순 정렬, 동일 금액 시 참여 시점 순, 상위 3인 Main Producer 강조",
+      "entities": ["Credit"],
+      "userStories": ["US-012"]
+    },
+    {
+      "id": "DR-011",
+      "name": "출금 가능 금액 초과 불가",
+      "description": "출금 요청 금액은 withdrawable_balance를 초과할 수 없음",
+      "entities": ["WithdrawalRequest", "Wallet"],
+      "userStories": ["US-021"]
+    },
+    {
+      "id": "DR-012",
+      "name": "OPEN 상태에서만 제안/후원 가능",
+      "description": "에피소드 상태가 OPEN일 때만 제안 생성, 지지, 직접 후원 가능",
+      "entities": ["Episode", "Proposal", "Backing"],
+      "userStories": ["US-009", "US-010", "US-011"]
+    },
+    {
+      "id": "DR-013",
+      "name": "제재된 사용자 로그인 차단",
+      "description": "SUSPENDED 또는 PERMANENT_BAN 제재 적용 시 해당 사용자 로그인 차단",
+      "entities": ["User", "Sanction"],
+      "userStories": ["US-023"]
+    },
+    {
+      "id": "DR-014",
+      "name": "철회 가능 조건",
+      "description": "OPEN 상태 Episode에서 본인의 Proposal/Backing만 철회 가능. Sponsor(직접후원)는 철회 불가",
+      "entities": ["Episode", "Proposal", "Backing"],
+      "userStories": ["US-009", "US-010"]
+    },
+    {
+      "id": "DR-015",
+      "name": "Ink 부족 시 충전 유도",
+      "description": "제안/지지/후원 시 Ink 잔액 부족하면 충전하기 버튼 노출 → /shop 연결",
+      "entities": ["Wallet"],
+      "userStories": ["US-009", "US-010", "US-011"]
+    },
+    {
+      "id": "DR-016",
+      "name": "크리에이터 전환 즉시 반영",
+      "description": "크리에이터 프로필 설정 완료 시 심사 없이 즉시 CREATOR 역할 부여",
+      "entities": ["User"],
+      "userStories": []
+    },
+    {
+      "id": "DR-017",
+      "name": "OPEN 상태 저장 즉시 반영",
+      "description": "Episode가 OPEN 상태일 때 작가가 저장하면 즉시 독자 화면에 반영. 임시저장(Draft) 없음",
+      "entities": ["Episode", "EpisodeContent"],
+      "userStories": ["US-014"]
+    },
+    {
+      "id": "DR-018",
+      "name": "1 Ink = 100원 고정 환율",
+      "description": "Ink 충전 시 1 Ink = 100원 고정. 보너스/할인/추천/이벤트 전부 제거",
+      "entities": ["Payment"],
+      "userStories": ["US-005"]
+    },
+    {
+      "id": "DR-019",
+      "name": "비밀번호 규칙",
+      "description": "비밀번호는 8자 이상, 영문/숫자 필수, 특수문자 선택",
+      "entities": ["User"],
+      "userStories": ["US-001"]
+    },
+    {
+      "id": "DR-020",
+      "name": "휴대폰 인증 필수",
+      "description": "회원가입 시 휴대폰 번호 인증 필수. 인증번호 유효시간 5분",
+      "entities": ["User", "PhoneVerification"],
+      "userStories": ["US-001"]
+    },
+    {
+      "id": "DR-021",
+      "name": "회원가입 단계별 진행",
+      "description": "회원가입은 이메일 인증 → 비밀번호 설정 → 휴대폰 인증 → 약관 동의 순서로 단계별 진행",
+      "entities": ["User", "EmailVerification", "PhoneVerification"],
+      "userStories": ["US-001"]
+    },
+    {
+      "id": "DR-022",
+      "name": "이메일 인증 선행 필수",
+      "description": "이메일 인증 완료 후에만 비밀번호 설정 단계로 진행 가능",
+      "entities": ["User", "EmailVerification"],
+      "userStories": ["US-001"]
+    },
+    {
+      "id": "DR-023",
+      "name": "휴대폰 인증 선택성",
+      "description": "휴대폰 인증은 서비스 정책에 따라 필수 또는 선택 처리 가능. 선택일 경우 '나중에 하기' 옵션 제공",
+      "entities": ["User", "PhoneVerification"],
+      "userStories": ["US-001"]
+    }
+  ],
+  "dataFlows": [
+    {
+      "name": "회원가입 플로우 (단계별 분리)",
+      "description": "이메일 인증 → 비밀번호 설정 → 휴대폰 인증 → 약관 동의 순서로 진행",
+      "userStories": ["US-001"],
+      "steps": [
+        { "order": 1, "action": "Create", "entity": "EmailVerification", "description": "이메일 입력 및 인증 코드 발송" },
+        { "order": 2, "action": "Update", "entity": "EmailVerification", "description": "인증 코드 검증, status → VERIFIED" },
+        { "order": 3, "action": "Create", "entity": "User", "description": "비밀번호 설정, User 생성 (signupStep: PHONE_VERIFICATION)" },
+        { "order": 4, "action": "Create", "entity": "Wallet", "description": "Wallet 자동 생성" },
+        { "order": 5, "action": "Create", "entity": "PhoneVerification", "description": "휴대폰 인증 코드 발송" },
+        { "order": 6, "action": "Update", "entity": "User", "description": "휴대폰 인증 완료, isPhoneVerified = true" },
+        { "order": 7, "action": "Update", "entity": "User", "description": "약관 동의, consents 저장" },
+        { "order": 8, "action": "Update", "entity": "User", "description": "회원가입 완료, signupStep → COMPLETED" }
+      ]
+    },
+    {
+      "name": "독자 Ink 충전",
+      "description": "Ink Shop에서 패키지 선택 후 PG 결제 진행",
+      "userStories": ["US-005"],
+      "steps": [
+        { "order": 1, "action": "Read", "entity": "Wallet", "description": "현재 잔액 확인" },
+        { "order": 2, "action": "Create", "entity": "Payment", "description": "결제 요청 생성 (status: PENDING)" },
+        { "order": 3, "action": "Execute", "entity": "Payment", "description": "PG 결제 진행" },
+        { "order": 4, "action": "Update", "entity": "Payment", "description": "결제 완료 (status: COMPLETED)" },
+        { "order": 5, "action": "Create", "entity": "Transaction", "description": "CHARGE 트랜잭션 생성" },
+        { "order": 6, "action": "Update", "entity": "Wallet", "description": "availableBalance 증가" }
+      ]
+    },
+    {
+      "name": "제안 생성 플로우",
+      "description": "독자가 OPEN 상태 에피소드에 제안 생성",
+      "userStories": ["US-009"],
+      "steps": [
+        { "order": 1, "action": "Read", "entity": "Episode", "description": "Episode.status = OPEN 확인" },
+        { "order": 2, "action": "Read", "entity": "Wallet", "description": "availableBalance >= 100 확인" },
+        { "order": 3, "action": "Create", "entity": "Proposal", "description": "Proposal 생성 (seedMoney >= 100)" },
+        { "order": 4, "action": "Create", "entity": "Escrow", "description": "Escrow 생성 (status: HOLDING)" },
+        { "order": 5, "action": "Create", "entity": "Backing", "description": "Backing 생성 (type: PROPOSAL_BACKING, status: ESCROWED)" },
+        { "order": 6, "action": "Create", "entity": "Transaction", "description": "USE_PROPOSAL 트랜잭션 생성" },
+        { "order": 7, "action": "Update", "entity": "Wallet", "description": "availableBalance 감소, pendingBalance 증가" },
+        { "order": 8, "action": "Update", "entity": "Episode", "description": "proposalCount 증가" },
+        { "order": 9, "action": "Create", "entity": "Notification", "description": "작가에게 NEW_PROPOSAL 알림" }
+      ]
+    },
+    {
+      "name": "제안 지지 플로우",
+      "description": "독자가 기존 제안에 지지(Backing)",
+      "userStories": ["US-010"],
+      "steps": [
+        { "order": 1, "action": "Read", "entity": "Proposal", "description": "Proposal.status = PENDING 확인" },
+        { "order": 2, "action": "Read", "entity": "Episode", "description": "Episode.status = OPEN 확인" },
+        { "order": 3, "action": "Read", "entity": "Wallet", "description": "잔액 확인" },
+        { "order": 4, "action": "Create", "entity": "Backing", "description": "Backing 생성 (type: PROPOSAL_BACKING, status: ESCROWED)" },
+        { "order": 5, "action": "Update", "entity": "Escrow", "description": "totalAmount 증가" },
+        { "order": 6, "action": "Update", "entity": "Proposal", "description": "totalBounty, backerCount 증가" },
+        { "order": 7, "action": "Create", "entity": "Transaction", "description": "USE_BACKING 트랜잭션 생성" },
+        { "order": 8, "action": "Update", "entity": "Wallet", "description": "availableBalance 감소, pendingBalance 증가" },
+        { "order": 9, "action": "Create", "entity": "Notification", "description": "작가에게 NEW_BACKING 알림" }
+      ]
+    },
+    {
+      "name": "직접 후원 플로우",
+      "description": "독자가 에피소드에 직접 후원 (에스크로 없이 즉시 정산)",
+      "userStories": ["US-011"],
+      "steps": [
+        { "order": 1, "action": "Read", "entity": "Episode", "description": "Episode.status = OPEN 확인" },
+        { "order": 2, "action": "Read", "entity": "Wallet", "description": "잔액 확인" },
+        { "order": 3, "action": "Create", "entity": "Backing", "description": "Backing 생성 (type: DIRECT_BACKING, status: SETTLED)" },
+        { "order": 4, "action": "Create", "entity": "Transaction", "description": "독자 USE_DIRECT 트랜잭션 생성" },
+        { "order": 5, "action": "Update", "entity": "Wallet", "description": "독자 availableBalance 감소" },
+        { "order": 6, "action": "Update", "entity": "Wallet", "description": "작가 payableBalance 증가" },
+        { "order": 7, "action": "Create", "entity": "Transaction", "description": "작가 SETTLEMENT 트랜잭션 생성" },
+        { "order": 8, "action": "Create", "entity": "Notification", "description": "작가에게 NEW_SPONSOR 알림" }
+      ]
+    },
+    {
+      "name": "Deal (채택) 플로우",
+      "description": "작가가 제안을 채택",
+      "userStories": ["US-017"],
+      "steps": [
+        { "order": 1, "action": "Update", "entity": "Proposal", "description": "status → DEAL, decidedAt 설정" },
+        { "order": 2, "action": "Update", "entity": "Escrow", "description": "status → RELEASED" },
+        { "order": 3, "action": "Update", "entity": "Backing", "description": "모든 Backing.status → SETTLED" },
+        { "order": 4, "action": "Update", "entity": "Wallet", "description": "작가 payableBalance 증가" },
+        { "order": 5, "action": "Create", "entity": "Transaction", "description": "작가 SETTLEMENT 트랜잭션 생성" },
+        { "order": 6, "action": "Update", "entity": "Wallet", "description": "독자들 pendingBalance 감소" },
+        { "order": 7, "action": "Create", "entity": "Notification", "description": "독자들에게 PROPOSAL_ACCEPTED 알림" }
+      ]
+    },
+    {
+      "name": "Drop (거절) 플로우",
+      "description": "작가가 제안을 거절, 참여자 전원 환불",
+      "userStories": ["US-018"],
+      "steps": [
+        { "order": 1, "action": "Update", "entity": "Proposal", "description": "status → DROP, decidedAt 설정" },
+        { "order": 2, "action": "Update", "entity": "Escrow", "description": "status → REFUNDED" },
+        { "order": 3, "action": "Update", "entity": "Backing", "description": "모든 Backing.status → REFUNDED" },
+        { "order": 4, "action": "Update", "entity": "Wallet", "description": "각 Backer pendingBalance 감소" },
+        { "order": 5, "action": "Update", "entity": "Wallet", "description": "각 Backer availableBalance 증가" },
+        { "order": 6, "action": "Create", "entity": "Transaction", "description": "각 Backer REFUND 트랜잭션 생성" },
+        { "order": 7, "action": "Create", "entity": "Notification", "description": "독자들에게 PROPOSAL_REJECTED 알림" }
+      ]
+    },
+    {
+      "name": "완성 원고 공개 플로우",
+      "description": "작가가 최종 원고 업로드, 에피소드 공개 및 크레딧 생성",
+      "userStories": ["US-019"],
+      "steps": [
+        { "order": 1, "action": "Create", "entity": "EpisodeContent", "description": "최종 원고 업로드 (isFinal = true)" },
+        { "order": 2, "action": "Update", "entity": "Episode", "description": "status → PUBLISHED, publishedAt 설정" },
+        { "order": 3, "action": "Create", "entity": "Credit", "description": "Credit 자동 생성 (Proposer+Backer+Sponsor 전원)" },
+        { "order": 4, "action": "Update", "entity": "Wallet", "description": "작가 payableBalance → withdrawableBalance (수수료 차감)" },
+        { "order": 5, "action": "Create", "entity": "Notification", "description": "참여자들에게 EPISODE_PUBLISHED 알림" }
+      ]
+    },
+    {
+      "name": "출금 요청 플로우",
+      "description": "작가가 출금 가능 금액을 실제 계좌로 출금 요청",
+      "userStories": ["US-021", "US-025", "US-026"],
+      "steps": [
+        { "order": 1, "action": "Read", "entity": "Wallet", "description": "withdrawableBalance 확인" },
+        { "order": 2, "action": "Create", "entity": "WithdrawalRequest", "description": "출금 요청 생성 (status: PENDING)" },
+        { "order": 3, "action": "Create", "entity": "Notification", "description": "관리자에게 WITHDRAWAL_REQUEST 알림" },
+        { "order": 4, "action": "Update", "entity": "WithdrawalRequest", "description": "관리자 승인 (status: APPROVED)" },
+        { "order": 5, "action": "Execute", "entity": "WithdrawalRequest", "description": "실제 이체 처리" },
+        { "order": 6, "action": "Update", "entity": "WithdrawalRequest", "description": "완료 (status: COMPLETED)" },
+        { "order": 7, "action": "Update", "entity": "Wallet", "description": "withdrawableBalance 감소" },
+        { "order": 8, "action": "Create", "entity": "Transaction", "description": "WITHDRAWAL 트랜잭션 생성" },
+        { "order": 9, "action": "Create", "entity": "Notification", "description": "작가에게 SETTLEMENT_COMPLETED 알림" }
+      ]
+    },
+    {
+      "name": "비밀번호 재설정 플로우",
+      "description": "휴대폰 인증을 통한 비밀번호 재설정",
+      "userStories": ["US-002-1"],
+      "steps": [
+        { "order": 1, "action": "Create", "entity": "PhoneVerification", "description": "휴대폰 인증 코드 발송 (purpose: PASSWORD_RESET)" },
+        { "order": 2, "action": "Update", "entity": "PhoneVerification", "description": "인증 코드 검증" },
+        { "order": 3, "action": "Update", "entity": "User", "description": "새 비밀번호 설정" }
+      ]
+    },
+    {
+      "name": "회원 탈퇴 플로우",
+      "description": "본인 확인 후 계정 삭제",
+      "userStories": ["US-002-2"],
+      "steps": [
+        { "order": 1, "action": "Read", "entity": "User", "description": "탈퇴 유의사항 확인" },
+        { "order": 2, "action": "Confirm", "entity": "User", "description": "본인 확인 (비밀번호, 확인 문구)" },
+        { "order": 3, "action": "Update", "entity": "User", "description": "User.status = DELETED" },
+        { "order": 4, "action": "Execute", "entity": "User", "description": "로그아웃 처리" }
+      ]
+    },
+    {
+      "name": "참여 철회 플로우",
+      "description": "OPEN 상태에서 본인 제안/지지 철회",
+      "userStories": ["US-009", "US-010"],
+      "steps": [
+        { "order": 1, "action": "Read", "entity": "Episode", "description": "Episode.status = OPEN 확인" },
+        { "order": 2, "action": "Read", "entity": "Backing", "description": "본인 참여 여부 및 유형 확인" },
+        { "order": 3, "action": "Update", "entity": "Backing", "description": "Backing.status → REFUNDED" },
+        { "order": 4, "action": "Update", "entity": "Escrow", "description": "totalAmount 감소" },
+        { "order": 5, "action": "Create", "entity": "Transaction", "description": "REFUND 트랜잭션 생성" },
+        { "order": 6, "action": "Update", "entity": "Wallet", "description": "pendingBalance 감소, availableBalance 복구" }
+      ]
+    },
+    {
+      "name": "크리에이터 전환 플로우",
+      "description": "독자가 크리에이터로 역할 전환",
+      "userStories": [],
+      "steps": [
+        { "order": 1, "action": "Read", "entity": "User", "description": "현재 역할 확인 (READER만 가능)" },
+        { "order": 2, "action": "Update", "entity": "User", "description": "프로필 사진, 닉네임, 작가 소개글 입력" },
+        { "order": 3, "action": "Update", "entity": "User", "description": "User.role → CREATOR (즉시 반영)" }
+      ]
+    },
+    {
+      "name": "신고 처리 플로우",
+      "description": "사용자 신고 접수 및 관리자 처리",
+      "userStories": ["US-029", "US-030", "US-031", "US-032"],
+      "steps": [
+        { "order": 1, "action": "Read", "entity": "Report", "description": "중복 신고 확인" },
+        { "order": 2, "action": "Create", "entity": "Report", "description": "신고 접수 (status: PENDING)" },
+        { "order": 3, "action": "Create", "entity": "Notification", "description": "관리자에게 NEW_REPORT 알림" },
+        { "order": 4, "action": "Update", "entity": "Report", "description": "관리자 검토 시작 (status: REVIEWING)" },
+        { "order": 5, "action": "Read", "entity": "Sanction", "description": "피신고자 과거 이력 확인" },
+        { "order": 6, "action": "Create", "entity": "Sanction", "description": "제재 조치 시 Sanction 생성 (선택적)" },
+        { "order": 7, "action": "Update", "entity": "Report", "description": "처리 완료 (status: RESOLVED 또는 DISMISSED)" },
+        { "order": 8, "action": "Create", "entity": "Notification", "description": "신고자에게 REPORT_RESOLVED 알림" }
+      ]
+    }
+  ],
+  "glossary": [
+    {
+      "koreanTerm": "Ink",
+      "englishTerm": "Ink",
+      "definition": "플랫폼 내 유료 재화. 1 Ink = 100원 고정. 구매 옵션: 10/20/30/100 Ink. 보너스/할인 없음"
+    },
+    {
+      "koreanTerm": "콘티",
+      "englishTerm": "Conti",
+      "definition": "작가가 업로드하는 스토리 초안 (이미지/텍스트). OPEN 상태에서 후원/제안을 받음"
+    },
+    {
+      "koreanTerm": "제안",
+      "englishTerm": "Proposal",
+      "definition": "독자가 스토리 전개에 개입하기 위해 Ink를 걸고 생성하는 요청. 제안자는 Proposer로 표시"
+    },
+    {
+      "koreanTerm": "지지",
+      "englishTerm": "Backing",
+      "definition": "다른 독자의 제안에 추가로 Ink를 더해 채택 확률을 높이는 행위. 지지자는 Backer로 표시"
+    },
+    {
+      "koreanTerm": "직접 후원",
+      "englishTerm": "Direct Backing / Sponsor",
+      "definition": "제안 없이 순수하게 창작을 지원하는 후원 방식. 후원자는 Sponsor로 표시. 철회 불가"
+    },
+    {
+      "koreanTerm": "Bounty",
+      "englishTerm": "Bounty",
+      "definition": "제안에 모인 총 금액 (seedMoney + 모든 backing 금액)"
+    },
+    {
+      "koreanTerm": "에스크로",
+      "englishTerm": "Escrow",
+      "definition": "제안/지지 시 시스템이 Ink를 임시 보관하는 계정. Deal 또는 Drop 시 해제"
+    },
+    {
+      "koreanTerm": "채택",
+      "englishTerm": "Deal",
+      "definition": "작가가 제안을 채택하는 것. 에스크로 금액이 작가에게 이동"
+    },
+    {
+      "koreanTerm": "거절",
+      "englishTerm": "Drop",
+      "definition": "작가가 제안을 거절하는 것. 에스크로 금액이 참여자에게 100% 환불"
+    },
+    {
+      "koreanTerm": "크레딧",
+      "englishTerm": "Credit",
+      "definition": "완성된 에피소드 하단에 표시되는 기여자 명단. 영구 박제됨"
+    },
+    {
+      "koreanTerm": "메인 프로듀서",
+      "englishTerm": "Main Producer",
+      "definition": "기여 금액 상위 3인에게 부여되는 특별 타이틀"
+    },
+    {
+      "koreanTerm": "정산 예정금",
+      "englishTerm": "payableBalance",
+      "definition": "정산 예정금. Deal 또는 직접 후원 시 누적되는 금액"
+    },
+    {
+      "koreanTerm": "출금 가능 금액",
+      "englishTerm": "withdrawableBalance",
+      "definition": "출금 가능 금액. 완성 원고 공개 후 수수료 차감된 금액"
+    },
+    {
+      "koreanTerm": "OPEN",
+      "englishTerm": "OPEN",
+      "definition": "에피소드 상태. 후원 및 제안을 받을 수 있는 상태"
+    },
+    {
+      "koreanTerm": "PUBLISHED",
+      "englishTerm": "PUBLISHED",
+      "definition": "에피소드 상태. 완성 원고가 공개된 상태. 제안/후원 불가. Ink 정산 확정 시점"
+    },
+    {
+      "koreanTerm": "제안자",
+      "englishTerm": "Proposer",
+      "definition": "제안을 생성한 독자. 크레딧에 PROPOSER 타입으로 표시"
+    },
+    {
+      "koreanTerm": "지지자",
+      "englishTerm": "Backer",
+      "definition": "다른 독자의 제안을 지지한 독자. 크레딧에 BACKER 타입으로 표시"
+    },
+    {
+      "koreanTerm": "후원자",
+      "englishTerm": "Sponsor",
+      "definition": "제안 없이 직접 후원한 독자. 크레딧에 SPONSOR 타입으로 표시. 철회 불가"
+    },
+    {
+      "koreanTerm": "회원가입 단계",
+      "englishTerm": "signupStep",
+      "definition": "회원가입의 진행 상태. EMAIL_VERIFICATION → PASSWORD_SETUP → PHONE_VERIFICATION → TERMS_AGREEMENT → COMPLETED 순서"
+    },
+    {
+      "koreanTerm": "인증 코드",
+      "englishTerm": "Verification Code",
+      "definition": "이메일/휴대폰 인증 시 발송되는 6자리 숫자 코드. 유효 시간 5분"
+    },
+    {
+      "koreanTerm": "배너",
+      "englishTerm": "Banner",
+      "definition": "홈 화면 상단에 표시되는 이미지 배너. 관리자가 관리하며 특정 작품이나 외부 링크로 연결 가능"
+    },
+    {
+      "koreanTerm": "진행 중",
+      "englishTerm": "Pending",
+      "definition": "Episode.status === 'OPEN'인 모든 후원 건. Ink가 에스크로에 보관된 상태"
+    },
+    {
+      "koreanTerm": "제안 내역",
+      "englishTerm": "Proposal History",
+      "definition": "독자가 제안/후원한 기록의 목록. 마이페이지에서 조회 가능"
+    },
+    {
+      "koreanTerm": "의사결정 알림",
+      "englishTerm": "Decision Notification",
+      "definition": "작가가 deal/drop 선택 시 독자에게 발송되는 알림. 금전 이동은 발생하지 않음"
+    },
+    {
+      "koreanTerm": "정산 확정 알림",
+      "englishTerm": "Settlement Notification",
+      "definition": "published 전환 시 발송되는 알림. Ink 출금/환불이 최종 확정됨을 고지"
+    }
+  ],
+  "metadata": {
+    "totalEntities": 18,
+    "totalRelationships": 26,
+    "totalDomainRules": 23,
+    "totalDataFlows": 14,
+    "totalGlossaryTerms": 24,
+    "basedOnDocuments": [
+      "user_stories_data.json",
+      "conceptual_model.v2.json",
+      "ia_structure.md",
+      "logical_architecture.md",
+      "notification_scenarios.json",
+      "docs/changes/2026-01-27-0935.md",
+      "docs/changes/2026-01-27-1400.md"
+    ],
+    "completenessCheck": {
+      "allEntitiesHaveAttributes": true,
+      "allEnumsHaveValues": true,
+      "allRelationshipsSpecified": true,
+      "domainRulesCoverKeyConstraints": true,
+      "glossaryDefinesDomainTerms": true,
+      "userStoryMappingComplete": true,
+      "constraintsDocumented": true,
+      "defaultValuesSpecified": true,
+      "foreignKeysHaveReferences": true,
+      "relationshipIdsLinked": true
+    },
+    "changeLog": [
+      {
+        "version": "2.0.0",
+        "date": "2026-01-29",
+        "changes": [
+          "v2 skill 형식으로 변환",
+          "version, format, timestamp 필드 추가",
+          "entities에 businessName, category, relatedEntities 추가",
+          "relationships를 별도 top-level 배열로 분리",
+          "모든 외래키 속성에 references 객체 추가",
+          "domainRules에 entities, userStories 배열 추가",
+          "dataFlows의 steps를 객체 배열로 변환 (order, action, entity)",
+          "glossary에 koreanTerm, englishTerm 구조 적용"
+        ]
+      }
+    ]
+  }
+}
